@@ -1,0 +1,136 @@
+first boot
+#connect to wifi ap Omega-xxxx (pw=12345678)
+
+#ssh to access
+ssh root@192.168.3.1 (pw=onioneer)
+#setup wifi (wwan to home network)
+wifisetup
+#change root pasword
+passwd (my pw changed to 'omega')
+#set dhcp hostname (name that will show up in a routers dhcp list)
+uci set network.wwan.hostname='Omega_Test1'
+#set AP password (not using AP, but cannot turn off, set some password to prevent access)
+uci set wireless.@wifi-iface[0].key='J9>Da*f4yr1\{Z5m)]vD'
+#hide AP (that's all we can do)
+uci set wireless.@wifi-iface[0].hidden='1'
+#set timezone
+uci set system.@system[0].timezone=CST6CDT,M3.2.0,M11.1.0
+
+#upgrade os, install software
+opkg update
+oupgrade
+
+#optional pyhthon3- testing gpio (I don't use)
+opkg install python3-light
+wget https://github.com/OnionIoT/onion-gpio-sysfs/raw/master/python/onionGpio.py
+mv onionGpio.py /usr/lib/python3.6
+vi /usr/lib/python3.6/onionGpio.py - add paren to 3 print statements
+
+#install any needed apps
+opkg install mpg123             #play mp3 streams
+opkg install coreutils-stty     #serial port access (Onion Dock)
+opkg install alsa-utils         #audio control
+#httpd is installed also- have a web page to show Omgega2 info (top output , etc.), and mp3 log file
+
+
+
+#modified mpg123 so no frame info output- I want the log output but not the frame info
+#(no way to turn off frame info, so modified source, then recompiled)
+#compiled from source with Onion2 as target
+#(don't remember how, was done on a test pc)
+
+#opkg remove mpg123, libmpg123 -remove original
+#install libout123, libmpg123, mpg123 from ipk -install new versions
+
+#created mp3 script, logger script, copied to /root folder
+#ssh into omega2, run ./mp3 (no args will show help)
+#mpg123 will run in background listening to a command fifo
+#mpg123 will output log info to a log fifo
+#logger will listen on log fifo and log info
+#mpg123 cannot handle https streams, so use wget to get stream, output to a fifo, then
+# tell mpg123 to get stream from fifo
+
+
+
+
+#################
+#  misc info
+#################
+
+//////////////
+docker
+//////////////
+https://download.docker.com/linux/ubuntu/dists/xenial/pool/stable/amd64/
+
+https://docs.docker.com/install/linux/docker-ce/ubuntu/#install-from-a-package
+https://onion.io/2bt-cross-compiling-programs/
+https://onion.io/2bt-cross-compiling-c-programs-part-1/
+
+
+
+
+//////////////////////
+backup instructions
+/////////////////////
+BACKUP INSTRUCTIONS
+
+-Plug in Flash Drive
+
+-Mount Flash Drive
+mount /dev/sda1 /mnt
+
+-Create backup folder in flash drive
+mkdir /mnt/backup
+
+-Read / Verify mtd#
+cat /proc/mtd
+
+(Printout looks something like this)
+
+mtd0: 00030000 00010000 "u-boot"
+mtd1: 00010000 00010000 "u-boot-env"
+mtd2: 00010000 00010000 "factory"
+mtd3: 01fb0000 00010000 "firmware"
+mtd4: 00140404 00010000 "kernel"
+mtd5: 01e6fbfc 00010000 "rootfs"
+mtd6: 01910000 00010000 "rootfs_data"
+
+-Copy mtd# to bin files on flash drive
+
+(Command to copy mtd0)
+dd if=/dev/mtd0 of=/mnt/backup/uboot.bin
+
+(Command to copy mtd1)
+dd if=/dev/mtd1 of=/mnt/backup/ubootenv.bin
+
+(Command to copy mtd2)
+dd if=/dev/mtd2 of=/mnt/backup/factory.bin
+
+(Command to copy mtd3)
+dd if=/dev/mtd3 of=/mnt/backup/firmware.bin
+
+(Command to copy mtd4)
+dd if=/dev/mtd4 of=/mnt/backup/kernel.bin
+
+(Command to copy mtd5)
+dd if=/dev/mtd5 of=/mnt/backup/rootfs.bin
+
+(Command to copy mtd6)
+dd if=/dev/mtd6 of=/mnt/backup/rootfsdata.bin
+
+firmware.bin and rootfsdata.bin could take up to a few minutes to completely copy over. Do not stop this process.
+
+For a general backup the only thing that really matters to copy is firmware.bin. The other bin files are optional backups and only needed in special cases. Better to have and not need then need and not have :)
+
+RESTORE INSTRUCTIONS
+
+-Plug in Flash Drive
+
+-Mount Flash Drive
+mount /dev/sda1 /mnt
+(sometimes the flash drive is not "sda1", you can verify number in debug terminal as you plug it in)
+
+-Run Recovery Command
+mtd -r write /mnt/backup/firmware.bin firmware
+
+This will take a few minutes to complete. After the Omega Onion will reboot and you should see an imaged / recovered Omega Onion! Hope this helps someone.

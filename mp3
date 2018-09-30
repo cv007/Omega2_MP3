@@ -1,0 +1,268 @@
+#!/bin/sh
+#
+# cmdfifo -> mpg123 [1/2]-> logfifo
+# mp3 -> cmdfifo
+# mp3 -> logfifo
+# logfifo -> logger.sh
+#==============================================================================
+# usage
+#==============================================================================
+script=$(basename $0)                           #script name only
+usage() {
+    n=$script
+    echo " USAGE:"
+    echo "   $n stop                            -stop stream playback"
+    echo "   $n pause                           -pause stream playback"
+    echo "   $n quit                            -quit the mpg123 process"
+    echo "   $n cleanup                         -cleanup fifos, processes"
+    echo "   $n vol 0-100                       -set volume 0-100"
+    echo "   $n vol                             -set volume to default ($vol_default)"
+    echo "   $n seq B M H                       -set simple eq base mid high"
+    echo "   $n seq                             -set simple eq to ($eq3_default)"
+    echo "   $n logs                            -print the log files"
+    echo ""
+    echo "   ---the following are live streams"
+    echo "   $n holiday                         -play MPR Holiday stream"
+    echo "   $n choral                          -play MPR Choral stream"
+    echo "   $n classical                       -play MPR Classical stream"
+    echo "   $n bott                            -play Bott Radio Network"
+    echo ""
+    echo "   ----the following play today's stream"
+    echo "   $n lwf                             -play Love Worth Finding"
+    echo "   $n ttb                             -play Through the Bible"
+    echo "   $n tp                              -play Turning Point"
+    echo ""
+    echo "   ---the following streams default to today's stream"
+    echo "      unless a date is also provided"
+    echo "   $n rym [20YYMMDD]                  -play Renewing Your Mind"
+    echo "   $n rtw [20YYMMDD]                  -play Running to Win"
+    echo ""
+    exit 1
+}
+#==============================================================================
+# init variables
+# script command arg arg ...
+#==============================================================================
+cmd=$1                                          #set cmd to first arg
+this_dir=$(readlink -f $(dirname $0))           #this script full dir name
+cmd_fifo=$this_dir/cmdfifo                      #cmd fifo name
+wget_fifo=$this_dir/wgetfifo                    #wget fifo name
+log_fifo=$this_dir/logfifo                      #wget fifo name
+eq3_default="1.2 0.8 2.5"                       #default eq (base,mid,high)
+[ $(pidof mpg123) ] && running=1                #mpg123 already running?
+vol_default=70                                  #default amixer volume
+mpg123_exe=mpg123                               #mpg123 executable
+logger_exe=$this_dir/logger
+logfile=$this_dir/log.txt
+[ $1 ] || usage                                 #if no args,show usage and exit
+
+#==============================================================================
+# init date for streams that use date in url
+# optional date can also be passed in
+#==============================================================================
+today=$(date +%Y)$(date +%m)$(date +%d)
+[ ${#2} -eq 8 ] && [ ${2:0:2} -eq 20 ] && today=$2
+#==============================================================================
+# functions
+#==============================================================================
+#..............................................................................
+# Omega expansion dock rgb connected to gpio 15,16,17
+#..............................................................................
+rgb() {
+    #all output (if not already), and off (high)
+    gpioctl dirout-high 17 &> /dev/null #red
+    gpioctl dirout-high 16 &> /dev/null #green
+    gpioctl dirout-high 15 &> /dev/null #blue
+
+    case "$1" in
+        "red")
+            gpioctl clear 17 &> /dev/null
+            ;;
+        "green")
+            gpioctl clear 16 &> /dev/null
+            ;;
+        "blue")
+            gpioctl clear 15 &> /dev/null
+    esac
+}
+#..............................................................................
+# log messages to logger
+# if one arg, just log it, if two args, assume first is a command
+#..............................................................................
+log() {
+    [ "$1" ] || return
+    [ "$2" ] && msg="$(printf "%7s : %s" "$1" "$2")" || msg="$1"
+    echo "$msg" > "$log_fifo"
+}
+#..............................................................................
+logs() {
+    echo "================================================="
+    echo " $script log file - $logfile"
+    echo "================================================="
+    cat $logfile
+}
+#..............................................................................
+command() {
+    [ $running ] && [ "$1" ] || exit 1          #if not running or no arg, exit
+    echo "$1" > "$cmd_fifo"                     #send command
+    log "command" "$1"                          #and log it
+}
+#..............................................................................
+stop() {
+    command "STOP"
+    rgb "red"                                   #lights red = stopped
+}
+#..............................................................................
+pause() {
+    command "PAUSE"
+}
+#..............................................................................
+seq() {
+    [ $3 ] && eq3_default="$1 $2 $3"            #if 3 args, set simple eq
+    command "SEQ $eq3_default"                  #else use our default
+}
+#..............................................................................
+vol() {
+    [ $1 ] && vol_default=$1                    #if no arg, use vol_default
+    amixer -q sset PCM ${vol_default}%          #alsa mixer volume
+    amixer -q sset PCM unmute                   #alsa mixer unmute
+    log "volume" $vol_default                   #log it
+}
+#..............................................................................
+# remove or create fifo's (any arg- then just delete fifo's
+#..............................................................................
+fifos() {
+    rm -f $wget_fifo &>/dev/null
+    rm -f $log_fifo &>/dev/null
+    rm -f $cmd_fifo &>/dev/null
+    [ "$1" ] && return
+    mkfifo $wget_fifo
+    mkfifo $log_fifo
+}
+
+#..............................................................................
+# shutdown mpg123, background process will end
+#..............................................................................
+quit() {
+    command "QUIT"
+    sleep 2                                     #give some time, then
+    log "QUITQUIT"                              #shutdown logger
+    sleep 2
+    fifos remove                                #delete fifos
+    sleep 2
+    >$logfile                                   #clear logfile
+    rgb "OFF"                                   #lights off
+    exit 0
+}
+#..............................................................................
+# shutdown everything, clean up fifos
+#..............................................................................
+cleanup() {
+    kill -9 $(pidof logger) &>/dev/null
+    sleep 1
+    kill -9 $(pidof mpg123) &>/dev/null
+    sleep 1
+    fifos remove                                #delete fifos
+    sleep 2
+    >$logfile                                   #clear logfile
+    rgb "OFF"                                   #lights off
+    exit 0
+}
+#..............................................................................
+# start mpg123 in background process
+# mpg123 creates fifo (and removes when done), we create wget fifo
+# send initial volume, eq
+#..............................................................................
+init() {
+    fifos
+    $logger_exe <$log_fifo &                    #start logger script
+    $mpg123_exe -R --float --fifo $cmd_fifo --remote-err 2>$log_fifo &
+    [ $? ] || exit 1                            #if failed, exit
+    running=1                                   #set running flag
+    sleep 3                                     #give some time, then
+    vol                                         #init volume
+    seq                                         #set our default simple eq
+    rgb "blue"                                  #lights blue = on
+}
+#..............................................................................
+# use wget into fifo for https streams as mpg123 does not do https
+# wget will quit when pipe is broken (by stop or quit command)
+# for http streams, let mpg123 handle http so we get song titles
+#..............................................................................
+http() {
+    [ $running ] || init                    #init mpg123 if not running
+    log "title" "$title"                    #log title,
+    [ $log_date ] && log "date" $today      #date, (if log_date flag set)
+    if [ ${url:0:5} == "https" ]; then      #if https stream
+        log "url" $url                      #log url
+        command "LOAD $wget_fifo"           #tell mpg123 to load from fifo
+        wget -qO $wget_fifo $url &          #wget into fifo, background
+    else                                    #let mpg123 get url
+        command "LOAD $url"                 #tell mpg123 to load url
+    fi
+    rgb "green"                             #lights green = running
+}
+#==============================================================================
+# process script arguments
+#==============================================================================
+func="http"    #assume http playback, change for other commands
+#allow uppercase arguments by converting all to lowercase
+cmd=$(echo $cmd | awk '{ print tolower($0) }')
+
+case $cmd in
+    "rgb") #can check rgb led operation- ./mp3 rgb blue|green|red|off
+        func="$@"
+        ;;
+    "stop"|"pause"|"quit"|"logs"|"cleanup")
+        func=$cmd
+        ;;
+    "seq"|"vol")
+        func="$@"
+        ;;
+    "classical")
+        url="http://cms.stream.publicradio.org/cms.mp3"
+        title="MPR Classical Stream"
+        ;;
+    "holiday")
+        url="http://holiday.stream.publicradio.org/holiday_cms.mp3"
+        title="MPR Holiday Stream"
+        ;;
+    "choral")
+        url="http://choral.stream.publicradio.org/choral.mp3"
+        title="MPR Choral Stream"
+        ;;
+    "rtw")
+        url="http://s3.amazonaws.com/themoodychurch/RadioPrograms/RTW25/RTWL$today.mp3"
+        title="Running to Win - Dr. Erwin Lutzer"
+        log_date=1
+        ;;
+    "rym")
+        url="http://s3.amazonaws.com/ligonier-broadcast-media/mp3/rym$today.mp3"
+        title="Renewing Your Mind - R.C. Sproul"
+        log_date=1
+        ;;
+    "lwf")
+        url=$(wget -qO - https://www.oneplace.com/ministries/love-worth-finding/custom-player | sed 's:\x27:\n:g' | grep -m 1 mp3)
+        title="Love Worth Finding - Adrian Rogers"
+        ;;
+    "tp")
+        url=$(wget -qO - http://www.davidjeremiah.org/site/radio_player.aspx | sed 's:":\n:g' | grep -m 1 mp3 | sed 's:?.*::')
+        title="Turning Point - Dr. David Jeremiah"
+        ;;
+    "ttb")
+        url=$(wget -qO - https://www.oneplace.com/ministries/thru-the-bible-with-j-vernon-mcgee/custom-player/ | sed 's:\x27:\n:g' | grep -m 1 mp3)
+        title="Through the Bible - Dr. J. Vernon McGee"
+        ;;
+    "bott")
+        url="http://sc1.christiannetcast.com:9058/"
+        title="Bott Radio Network"
+        ;;
+    *)
+        usage
+        ;;
+esac
+#==============================================================================
+# do it
+#==============================================================================
+$func
+
