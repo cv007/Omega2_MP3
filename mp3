@@ -34,6 +34,7 @@ usage() {
     echo ""
     echo "   ---the following streams default to today's stream"
     echo "      unless a date is also provided"
+    echo "   $n anb [20YYMMDD]                  -play A New Beginning"
     echo "   $n rym [20YYMMDD]                  -play Renewing Your Mind"
     echo "   $n rtw [20YYMMDD]                  -play Running to Win"
     echo ""
@@ -62,6 +63,7 @@ logfile=$this_dir/log.txt
 #==============================================================================
 today=$(date +%Y)$(date +%m)$(date +%d)
 [ ${#2} -eq 8 ] && [ ${2:0:2} -eq 20 ] && today=$2
+
 #==============================================================================
 # functions
 #==============================================================================
@@ -256,6 +258,10 @@ case $cmd in
     "bott")
         url="http://sc1.christiannetcast.com:9058/"
         title="Bott Radio Network"
+        ;;
+    "anb")
+        url=https://anewbeginning.swncdn.com/anb/${today:0:4}/anb${today:0:4}${today:4:2}${today:6:2}pod.mp3
+        title="A New Beginning - Greg Laurie"
         ;;
     *)
         usage
