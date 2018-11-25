@@ -188,27 +188,33 @@ init() {
     rgb "blue"                                  #lights blue = on
 }
 #..............................................................................
-# use wget into fifo for https streams as mpg123 does not do https
-# wget will quit when pipe is broken (by stop or quit command)
 # for http streams, let mpg123 handle http so we get song titles
 #..............................................................................
 http() {
     [ $running ] || init                    #init mpg123 if not running
     log "title" "$title"                    #log title,
     [ $log_date ] && log "date" $today      #date, (if log_date flag set)
-    if [ ${url:0:5} == "https" ]; then      #if https stream
-        log "url" $url                      #log url
-        command "LOAD $wget_fifo"           #tell mpg123 to load from fifo
-        wget -qO $wget_fifo $url &          #wget into fifo, background
-    else                                    #let mpg123 get url
-        command "LOAD $url"                 #tell mpg123 to load url
-    fi
+    command "LOAD $url"                     #tell mpg123 to load url
+    rgb "green"                             #lights green = running
+}
+#..............................................................................
+# use wget into fifo for https streams as mpg123 does not do https
+# wget will quit when pipe is broken (by stop or quit command)
+#..............................................................................
+https() {
+    [ $running ] || init                    #init mpg123 if not running
+    log "title" "$title"                    #log title,
+    [ $log_date ] && log "date" $today      #date, (if log_date flag set)
+    log "url" $url                          #log url
+    command "LOAD $wget_fifo"               #tell mpg123 to load from fifo
+    wget -qO $wget_fifo $url &              #wget into fifo, background
     rgb "green"                             #lights green = running
 }
 #==============================================================================
 # process script arguments
 #==============================================================================
-func="http"    #assume http playback, change for other commands
+#assume http playback, change for other commands
+func="http"
 #allow uppercase arguments by converting all to lowercase
 cmd=$(echo $cmd | awk '{ print tolower($0) }')
 
@@ -247,18 +253,22 @@ case $cmd in
     "itm")
         url=$(wget -qO - https://www.intouch.org/listen/podcast/today-on-radio | sed 's:":\n:g' | grep -m 1 mp3)
         title="In Touch Ministries - Dr. Charles Stanley"
+        func="https"
         ;;
     "lwf")
         url=$(wget -qO - https://www.oneplace.com/ministries/love-worth-finding/custom-player | sed 's:\x27:\n:g' | grep -m 1 mp3)
         title="Love Worth Finding - Adrian Rogers"
+        func="https"
         ;;
     "tp")
         url=$(wget -qO - http://www.davidjeremiah.org/site/radio_player.aspx | sed 's:":\n:g' | grep -m 1 mp3 | sed 's:?.*::')
         title="Turning Point - Dr. David Jeremiah"
+        func="https"
         ;;
     "ttb")
         url=$(wget -qO - https://www.oneplace.com/ministries/thru-the-bible-with-j-vernon-mcgee/custom-player/ | sed 's:\x27:\n:g' | grep -m 1 mp3)
         title="Through the Bible - Dr. J. Vernon McGee"
+        func="https"
         ;;
     "bott")
         url="http://sc1.christiannetcast.com:9058/"
@@ -267,6 +277,7 @@ case $cmd in
     "anb")
         url=https://anewbeginning.swncdn.com/anb/${today:0:4}/anb${today:0:4}${today:4:2}${today:6:2}pod.mp3
         title="A New Beginning - Greg Laurie"
+        func="https"
         ;;
     *)
         usage
@@ -276,4 +287,26 @@ esac
 # do it
 #==============================================================================
 $func
+
+
+#others not implemented
+#they do not work for some reason
+#but can play them via command line, https- wget -qO - $url | mpg123 -
+#or http- mpg123 $url
+#not sure what is going on
+
+#echo "   $n ltw                             -play Leading The Way"
+#echo "   $n tfl                             -play Truth for Life"
+#    "ltw")
+#        url=http://web.audio.ltw.org/${today:0:4}/ltw$today.mp3
+#        title="Leading The Way - Dr. Michael Youssef"
+#        ;;
+
+#   "tfl")
+#       url=$(wget -qO - https://www.truthforlife.org | sed 's:\x27:\n:g' | grep -m 1 mp3)
+#       title="Truth for Life - Alistair Begg"
+#       func="https"
+#       ;;
+
+
 
