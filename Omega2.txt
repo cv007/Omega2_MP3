@@ -53,21 +53,6 @@ opkg install alsa-utils         #audio control
 
 
 
-#################
-#  misc info
-#################
-
-//////////////
-docker
-//////////////
-https://download.docker.com/linux/ubuntu/dists/xenial/pool/stable/amd64/
-
-https://docs.docker.com/install/linux/docker-ce/ubuntu/#install-from-a-package
-https://onion.io/2bt-cross-compiling-programs/
-https://onion.io/2bt-cross-compiling-c-programs-part-1/
-
-
-
 
 //////////////////////
 backup instructions
