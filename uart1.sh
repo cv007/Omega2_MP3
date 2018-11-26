@@ -85,13 +85,13 @@ if [ $baud -gt 115200 ]; then
     devmem=/root/devmem
     sc=$(( (400000000 / $baud + 5) / 10 ))
     sp=$(( ($sc * 5 + 5) / 10 ))
-    $devmem write 0xd24 3          #UART1_HIGHSPEED = 3
-    $devmem setbits 0xd0c 0x80     #UART1_LCR.DLAB = 1
-    $devmem write 0xd00 1          #UART1_DLL (DLM:DLL = 1)
-    $devmem write 0xd04 0          #UART1_DLM
-    $devmem clrbits 0xd0c 0x80     #UART1_LCR.DLAB = 1
-    $devmem write 0xd28 $sc        #UART1_SAMPLE_COUNT
-    $devmem write 0xd2c $sp        #UART1_SAMPLE_POINT
+
+    $devmem w 0xd24 3
+    $devmem s 0xd0c 0x80 w 0xd00 1 w 0xd04 0 c 0xd0c 0x80
+    $devmem w 0xd28 $sc w 0xd2c $sp
+    #UART1_HIGHSPEED = 3
+    #UART1_LCR.DLAB = 1, UART1_DLL = 1, UART1_DLM = 0, UART1_LCR.DLAB = 0
+    #UART1_SAMPLE_COUNT = $sc, UART1_SAMPLE_POINT = $sp
 fi
 
 #==============================================================================
