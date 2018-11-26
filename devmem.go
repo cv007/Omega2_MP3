@@ -33,50 +33,49 @@ const REGBASE = 0x10000000
 
 func usage() {
     pnam := path.Base(os.Args[0])
-    fmt.Printf("\n%s read|r <addr>\n", pnam)
-    fmt.Printf("%s write|w <addr> <val>\n", pnam)
-    fmt.Printf("%s setbits|sb <addr> <bitmask>\n", pnam)
-    fmt.Printf("%s clrbits|cb <addr> <bitmask>\n", pnam)
-    fmt.Printf("  <addr>    = absolute or offset from 0x10000000\n")
+    fmt.Printf("\n%s r <address>            :read address, decimal\n", pnam)
+    fmt.Printf("\n%s h <address>            :read address, hex\n", pnam)
+    fmt.Printf("\n%s v <address>            :read address, verbose\n", pnam)
+    fmt.Printf("%s w <address> <value>      :write value to address\n", pnam)
+    fmt.Printf("%s s <address> <bitmask>    :setbits bitmask at address\n", pnam)
+    fmt.Printf("%s c <address> <bitmask>    :clear bits bitmask at address\n", pnam)
+    fmt.Printf("\n  <address> = absolute or offset from 0x10000000\n")
     fmt.Printf("  <bitmask> = bits to set or clear\n\n")
     return
 }
 
-func memread(mem []byte, addr int, addr_offset int) {
+func memread(mem []byte, addr int, addr_offset int, opt string) {
     v := *(*uint32)(unsafe.Pointer(&mem[addr_offset]))
     v3 := uint8(v>>24); v2 := uint8(v>>16); v1 := uint8(v>>8); v0 := uint8(v)
-    fmt.Printf(
-        "\n" +
-        "addr: [0x%08X] val: [0x%08X]\n" +
-        "\n" +
-        "bit 3 3 2 2 2 2 2 2  2 2 2 1 1 1 1 1  1 1 1 1 1 1\n" +
-        "pos 1 0 9 8 7 6 5 4  3 2 1 0 9 8 7 6  5 4 3 2 1 0 9 8  7 6 5 4 3 2 1 0\n" +
-        "    ...............  ...............  ...............  ...............\n",
-        addr, v)
-    fmt.Printf(
-        "bin ")
-    vb := v
-    for i := 0; i < 32; i++ {
-        b := "0 "
-        if (vb & (1<<31)) != 0 { b = "1 " }
-        fmt.Printf("%s", b)
-        if (i & 7) == 7 { fmt.Printf(" ") }
-        vb <<= 1
+    if opt == "v" {
+        fmt.Printf(
+            "\n" +
+            "addr: [0x%08X] val: [0x%08X]\n" +
+            "\n" +
+            "bit 3 3 2 2 2 2 2 2  2 2 2 1 1 1 1 1  1 1 1 1 1 1\n" +
+            "pos 1 0 9 8 7 6 5 4  3 2 1 0 9 8 7 6  5 4 3 2 1 0 9 8  7 6 5 4 3 2 1 0\n" +
+            "    ...............  ...............  ...............  ...............\n",
+            addr, v)
+        fmt.Printf(
+            "bin ")
+        vb := v
+        for i := 0; i < 32; i++ {
+            b := "0 "
+            if (vb & (1<<31)) != 0 { b = "1 " }
+            fmt.Printf("%s", b)
+            if (i & 7) == 7 { fmt.Printf(" ") }
+            vb <<= 1
+        }
+        fmt.Printf(
+            "\n" +
+            "hex %11s0x%02X  %11s0x%02X  %11s0x%02X  %11s0x%02X\n" +
+            "dec %15d  %15d  %15d  %15d\n\n",
+            " ", v3, " ", v2, " ", v1, " ", v0, v3, v2, v1, v0)
+    } else if opt == "h"{
+        fmt.Printf("0x%08X\n", v)
+    } else {
+        fmt.Printf("%d\n", v)
     }
-    fmt.Printf(
-        "\n" +
-        "hex %11s0x%02X  %11s0x%02X  %11s0x%02X  %11s0x%02X\n" +
-        "dec %15d  %15d  %15d  %15d\n\n",
-        " ", v3, " ", v2, " ", v1, " ", v0, v3, v2, v1, v0)
-}
-func memwrite(mem []byte, addr_offset int, val uint32) {
-    *(*uint32)(unsafe.Pointer(&mem[addr_offset])) = uint32(val)
-}
-func memsetbits(mem []byte, addr_offset int, val uint32) {
-    *(*uint32)(unsafe.Pointer(&mem[addr_offset])) |= uint32(val)
-}
-func memclrbits(mem []byte, addr_offset int, val uint32) {
-    *(*uint32)(unsafe.Pointer(&mem[addr_offset])) &^= uint32(val)
 }
 
 func main() {
@@ -88,13 +87,11 @@ func main() {
     b := uint64(0)
     switch opt {
         case "r":       fallthrough
-        case "read":
+        case "h":       fallthrough
+        case "v":
         case "w":       fallthrough
-        case "write":   fallthrough
-        case "sb":      fallthrough
-        case "setbits": fallthrough
-        case "cb":      fallthrough
-        case "clrbits":
+        case "s":       fallthrough
+        case "c":
             if len(args) < 3 { usage(); return }
             b, err = strconv.ParseUint(args[2], 0, 32)
             if err != nil { fmt.Printf("invalid number- %s\n", args[2]); return }
@@ -116,13 +113,11 @@ func main() {
 
     switch opt {
         case "r":       fallthrough
-        case "read":    memread(mem, addr, addr_offset)
-        case "w":       fallthrough
-        case "write":   memwrite(mem, addr_offset, val)
-        case "sb":      fallthrough
-        case "setbits": memsetbits(mem, addr_offset, val)
-        case "cb":      fallthrough
-        case "clrbits": memclrbits(mem, addr_offset, val)
+        case "h":       fallthrough
+        case "v":       memread(mem, addr, addr_offset, opt)
+        case "w":       *(*uint32)(unsafe.Pointer(&mem[addr_offset])) = uint32(val)
+        case "s":       *(*uint32)(unsafe.Pointer(&mem[addr_offset])) |= uint32(val)
+        case "c":       *(*uint32)(unsafe.Pointer(&mem[addr_offset])) &^= uint32(val)
     }
 
     err = syscall.Munmap(mem)
@@ -131,31 +126,31 @@ func main() {
 
 /*
 #230400baud - 40000000/230400 = 173.6
-./devmem write 0xd24 3          #UART1_HIGHSPEED = 3
-./devmem setbits 0xd0c 0x80     #UART1_LCR.DLAB = 1
-./devmem write 0xd00 1          #UART1_DLL (DLM:DLL = 1)
-./devmem write 0xd04 0          #UART1_DLM
-./devmem clrbits 0xd0c 0x80     #UART1_LCR.DLAB = 0
-./devmem write 0xd28 174        #UART1_SAMPLE_COUNT = 174
-./devmem write 0xd2c 87         #UART1_SAMPLE_POINT = 87
+./devmem w 0xd24 3          #UART1_HIGHSPEED = 3
+./devmem s 0xd0c 0x80       #UART1_LCR.DLAB = 1
+./devmem w 0xd00 1          #UART1_DLL (DLM:DLL = 1)
+./devmem w 0xd04 0          #UART1_DLM
+./devmem c 0xd0c 0x80       #UART1_LCR.DLAB = 0
+./devmem w 0xd28 174        #UART1_SAMPLE_COUNT = 174
+./devmem w 0xd2c 87         #UART1_SAMPLE_POINT = 87
 
 #460800baud = 40000000/460800 = 86.8
-./devmem write 0xd24 3          #UART1_HIGHSPEED = 3
-./devmem setbits 0xd0c 0x80     #UART1_LCR.DLAB = 1
-./devmem write 0xd00 1          #UART1_DLL (DLM:DLL = 1)
-./devmem write 0xd04 0          #UART1_DLM
-./devmem clrbits 0xd0c 0x80     #UART1_LCR.DLAB = 1
-./devmem write 0xd28 87         #UART1_SAMPLE_COUNT = 87
-./devmem write 0xd2c 43         #UART1_SAMPLE_POINT = 43
+./devmem w 0xd24 3          #UART1_HIGHSPEED = 3
+./devmem s 0xd0c 0x80       #UART1_LCR.DLAB = 1
+./devmem w 0xd00 1          #UART1_DLL (DLM:DLL = 1)
+./devmem w 0xd04 0          #UART1_DLM
+./devmem c 0xd0c 0x80       #UART1_LCR.DLAB = 1
+./devmem w 0xd28 87         #UART1_SAMPLE_COUNT = 87
+./devmem w 0xd2c 43         #UART1_SAMPLE_POINT = 43
 
 #600000baud = 40000000/600000 = 66.6
-./devmem write 0xd24 3          #UART1_HIGHSPEED = 3
-./devmem setbits 0xd0c 0x80     #UART1_LCR.DLAB = 1
-./devmem write 0xd00 1          #UART1_DLL (DLM:DLL = 1)
-./devmem write 0xd04 0          #UART1_DLM
-./devmem clrbits 0xd0c 0x80     #UART1_LCR.DLAB = 1
-./devmem write 0xd28 67         #UART1_SAMPLE_COUNT = 67
-./devmem write 0xd2c 33         #UART1_SAMPLE_POINT = 33
+./devmem w 0xd24 3          #UART1_HIGHSPEED = 3
+./devmem s 0xd0c 0x80       #UART1_LCR.DLAB = 1
+./devmem w 0xd00 1          #UART1_DLL (DLM:DLL = 1)
+./devmem w 0xd04 0          #UART1_DLM
+./devmem c 0xd0c 0x80       #UART1_LCR.DLAB = 1
+./devmem w 0xd28 67         #UART1_SAMPLE_COUNT = 67
+./devmem w 0xd2c 33         #UART1_SAMPLE_POINT = 33
 
 TODO: be able to run multiple commands
 ./devman w 0xd34 3 sb 0xd0c 0x80 w 0xd00 1 w 0xd04 0 cb 0xd0c 0x80 w 0xd28 67 w 0xd2c 33
