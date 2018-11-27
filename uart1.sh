@@ -55,7 +55,8 @@ cleanup() {
   kill -9 $catpid &>/dev/null
   set +e
   stty $save_stty
-  $devmem w 0xd24 0 #UART1_HIGHSPEED = 0
+  #UART1_HIGHSPEED = 0
+  $devmem w 0xd24 0
   exit 0
 }
 trap 'cleanup' INT
@@ -63,6 +64,8 @@ trap 'cleanup' INT
 #==============================================================================
 # setup serial port (append any additional command line parameters)
 #==============================================================================
+#UART1_HIGHSPEED = 0 (in case is still at 3 for some reason)
+$devmem w 0xd24 0
 stty -F /dev/ttyS1 raw -echo "$@"
 
 #==============================================================================
@@ -84,15 +87,34 @@ catpid=$!
 # write to highspeed register, set sample count and sample period registers
 #==============================================================================
 if [ $baud -gt 115200 ]; then
-    sc=$(( (400000000 / $baud + 5) / 10 ))
+    #Omega2 registers, bitmasks, clock
+    UART1_IER=0xd04; ERFBIbm=0x01
+    UART1_LCR=0xd0c; DLABbm=0x80
+    UART1_DLL=0xd00; UART1_DLM=0xd04
+    UART1_HIGHSPEED=0xd24
+    UART1_SAMPLE_COUNT=0xd28; UART1_SAMPLE_POINT=0xd2c
+    SYSTEM_CLOCK=40000000
+
+    #compute count, round up
+    sc=$(( ($SYSTEM_CLOCK * 10 / $baud + 5) / 10 ))
+    #sample = count/2, round up
     sp=$(( ($sc * 5 + 5) / 10 ))
 
-    $devmem w 0xd24 3
-    $devmem s 0xd0c 0x80 w 0xd00 1 w 0xd04 0 c 0xd0c 0x80
-    $devmem w 0xd28 $sc w 0xd2c $sp
-    #UART1_HIGHSPEED = 3
-    #UART1_LCR.DLAB = 1, UART1_DLL = 1, UART1_DLM = 0, UART1_LCR.DLAB = 0
-    #UART1_SAMPLE_COUNT = $sc, UART1_SAMPLE_POINT = $sp
+    #disable rx buffer irq, set highspeed to 3,
+    #set dlab then write to dlm:dll, clear dlab
+    #write count and sample, enable rx buffer irq
+    #send all commands to devmem (devmem runs just once)
+    $(echo -n "$devmem \
+        c $UART1_IER $ERFBIbm
+        w $UART1_HIGHSPEED 3 \
+        s $UART1_LCR $DLABbm \
+        w $UART1_DLL 1 \
+        w $UART1_DLM 0 \
+        c $UART1_LCR $DLABbm \
+        w $UART1_SAMPLE_COUNT $sc \
+        w $UART1_SAMPLE_POINT $sp \
+        s $UART1_IER $ERFBIbm \
+    ")
 fi
 
 #==============================================================================
