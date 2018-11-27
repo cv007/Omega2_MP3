@@ -41,6 +41,7 @@ baud=$(printf '%d' $(( $1 )) ) 2>/dev/null
 check_baud $baud
 shift
 set -e #exit on failures
+devmem=/root/devmem
 
 #==============================================================================
 # save settings of current terminal to restore later
@@ -54,6 +55,7 @@ cleanup() {
   kill -9 $catpid &>/dev/null
   set +e
   stty $save_stty
+  $devmem w 0xd24 0 #UART1_HIGHSPEED = 0
   exit 0
 }
 trap 'cleanup' INT
@@ -82,7 +84,6 @@ catpid=$!
 # write to highspeed register, set sample count and sample period registers
 #==============================================================================
 if [ $baud -gt 115200 ]; then
-    devmem=/root/devmem
     sc=$(( (400000000 / $baud + 5) / 10 ))
     sp=$(( ($sc * 5 + 5) / 10 ))
 
