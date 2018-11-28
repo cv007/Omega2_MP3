@@ -13,21 +13,20 @@
 #include <libgen.h> //basename
 
 //=============================================================================
-// command buffer struct definition
+// defines and GLOBAL vars
+//=============================================================================
+#define MAX_ARGS 255                    //limit # of args to program
+#define BASE_ADDR 0x10000000            //Omega2 base register address
+
+//=============================================================================
+// command buffer struct
 //=============================================================================
 typedef struct {
     char cmd;
     uint32_t addr;
     uint32_t val;
 } cmd_buffer_t;
-
-//=============================================================================
-// defines and GLOBAL vars
-//=============================================================================
-#define MAX_ARGS 255                    //limit # of args to program
-#define BASE_ADDR 0x10000000            //Omega2 base register address
-uint32_t g_pagesize;                    //page size (will get once, store here)
-cmd_buffer_t g_cmdbuffer[MAX_ARGS+1];   //store all commands/values when validated
+cmd_buffer_t g_cmdbuffer[MAX_ARGS+1];   //store all validated commands/values
 
 //=============================================================================
 // show usage
@@ -77,17 +76,6 @@ static void arg_error_exit(int argn, const char* str)
 }
 
 //=============================================================================
-// unmap previously mmapped memory, error/exit if fails to unmap
-//=============================================================================
-static void regunmap(void* vaddr)
-{
-    //if previously mapped and unmap fails (!0)
-    if(vaddr && munmap(vaddr, g_pagesize)){
-        error_exit("failed to unmap register memory");
-    }
-}
-
-//=============================================================================
 // map physical address to virtual memory, 1 page will be mapped
 // error/exit on any failures
 // return pointer to virtual address where word is located
@@ -96,18 +84,23 @@ static uint32_t* regmap(uint32_t addr)
 {
     static uint32_t m_page;     //current physical page mapped
     static void* m_vmem;        //current mmap pointer
+    static uint32_t m_pagesize; //system page size
 
+    //get system page size (most likely 4096), get/store once
+    if(m_pagesize == 0) m_pagesize = sysconf(_SC_PAGE_SIZE);
     //if same page already mapped, no need to map again
-    if(m_vmem && (addr / g_pagesize * g_pagesize) == m_page) goto ret;
+    if(m_vmem && (addr / m_pagesize * m_pagesize) == m_page) goto ret;
+    //if previously mapped and unmap fails (!0), error
+    if(m_vmem && munmap(m_vmem, m_pagesize)){
+        error_exit("failed to unmap register memory");
+    }
 
-    //unmap and get new map
-    regunmap(m_vmem);
     int fd = open("/dev/mem", O_RDWR);
     if(fd < 0) error_exit("failed to open /dev/mem");
-    m_page = addr / g_pagesize * g_pagesize;
+    m_page = addr / m_pagesize * m_pagesize;
 	m_vmem = mmap(
         NULL,                   //mmap determines virtual address
-        g_pagesize,             //length (just get a whole page)
+        m_pagesize,             //length (just get a whole page)
         PROT_READ | PROT_WRITE, //match file open
         MAP_FILE | MAP_SHARED,
         fd,                     //file
@@ -226,9 +219,6 @@ int main(int argc, char** argv)
 {
     //limit args to a reasonable number
     if(argc > MAX_ARGS) error_exit("argument count exceeded");
-
-    //get system page size (most likely 4096), get/store once
-    g_pagesize = sysconf(_SC_PAGE_SIZE);
 
     //check argc, if no args show usage
     //let basename modify argv[0]- is ok
