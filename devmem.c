@@ -1,5 +1,4 @@
 //=============================================================================
-// cv007@2018
 // devmem
 // read/write to hardware registers on Onion Omega2
 //=============================================================================
@@ -149,30 +148,30 @@ int strto_u32(const char* str, int argn)
 //=============================================================================
 bool validate_command_line(int argc, char** argv)
 {
-    //argn is always i+1, argn is 1 based for arg errors
-    for(int i = 0, idx = 0, argn = 1; i < argc; idx++){
-        g_cmdbuffer[idx].cmd = argv[i][0];
+    cmd_buffer_t* cb = &g_cmdbuffer[0];
+    for(int i = 0; i < argc; cb++){
+        cb->cmd = argv[i][0];
         //only single letter command allowed
-        if(argv[i][1]) arg_error_exit(argn, argv[i]);
-        i++; argn++;
-        switch(g_cmdbuffer[idx].cmd){
+        if(argv[i++][1]) arg_error_exit(i, argv[i-1]);
+        if(i >= argc) error_exit("incomplete command");
+        cb->addr = strto_u32(argv[i], i+1);
+        //get addr into 0x1xxxxxxx and word aligned
+        cb->addr &= (BASE_ADDR-1);  // 0x0.......
+        cb->addr |= BASE_ADDR;      // 0x1.......
+        cb->addr &= ~3;             // 0x.......n (n = 0b..00)
+        i++;
+        switch(cb->cmd){
             case 'r': case 'h': case 'b': case 'v':
-                if(i >= argc) error_exit("incomplete command");
-                g_cmdbuffer[idx].addr = strto_u32(argv[i++], argn++);
-                break;
+                break; //already got address, nothing to do
             case 'w': case 's': case 'c':
-                if(argn >= argc) error_exit("incomplete command");
-                g_cmdbuffer[idx].addr = strto_u32(argv[i++], argn++);
-                g_cmdbuffer[idx].val = strto_u32(argv[i++], argn++);
+                if(i >= argc) error_exit("incomplete command");
+                cb->val = strto_u32(argv[i], i+1);
+                i++;
                 break;
             default:
                 arg_error_exit(i, argv[i-1]);
                 break;
         }
-        //get addr into 0x1xxxxxxx and word aligned
-        g_cmdbuffer[idx].addr &= (BASE_ADDR-1);
-        g_cmdbuffer[idx].addr |= BASE_ADDR;
-        g_cmdbuffer[idx].addr &= ~3;
     }
 }
 
@@ -181,10 +180,10 @@ bool validate_command_line(int argc, char** argv)
 //=============================================================================
 void regread(char opt, uint32_t addr, uint32_t val)
 {
-    uint8_t b0 = val; 
-    uint8_t b1 = val>>8; 
-    uint8_t b2 = val>>16; 
-    uint8_t b3 = val>>24; 
+    uint8_t b0 = val;
+    uint8_t b1 = val>>8;
+    uint8_t b2 = val>>16;
+    uint8_t b3 = val>>24;
 
     if(opt == 'v'){
         printf(
@@ -239,18 +238,21 @@ int main(int argc, char** argv)
     validate_command_line(argc-1, &argv[1]);
 
     //iterate over validated command line buffer
-    for(int i = 0; g_cmdbuffer[i].cmd; i++){
-        cmd_buffer_t cb = g_cmdbuffer[i];
-        switch(cb.cmd){
+    for(cmd_buffer_t* cb = &g_cmdbuffer[0]; cb->cmd; cb++){
+        uint32_t* p32 = regmap(cb->addr);
+        switch(cb->cmd){
             case 'r':
             case 'h':
             case 'v':
             case 'b':
-                regread( cb.cmd, cb.addr, *(regmap(cb.addr)) );
+                regread( cb->cmd, cb->addr, *p32 );
                 break;
-            case 'w': *(regmap(cb.addr)) = cb.val;   break;
-            case 's': *(regmap(cb.addr)) |= cb.val;  break;
-            case 'c': *(regmap(cb.addr)) &= ~cb.val; break;
+            case 'w': *p32 = cb->val;
+                break;
+            case 's': *p32 |= cb->val;
+                break;
+            case 'c': *p32 &= ~cb->val;
+                break;
         }
     }
 
