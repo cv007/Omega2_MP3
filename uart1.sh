@@ -23,7 +23,7 @@ usage() {
 #==============================================================================
 check_baud() {
     [ $1 -eq 0 ] && usage "invalid baud value"
-    [ $1 -gt 600000 ] && usage "max baud is 600000"
+    [ $1 -gt 1000000 ] && usage "max baud is 1000000"
     [ $1 -gt 115200 ] && return
     for n in 110 300 600 1200 2400 4800 9600 19200 38400 57600 115200; do
         [ $1 -eq $n ] && return
@@ -95,9 +95,9 @@ if [ $baud -gt 115200 ]; then
     UART1_SAMPLE_COUNT=0xd28; UART1_SAMPLE_POINT=0xd2c
     SYSTEM_CLOCK=40000000
 
-    #compute count, round up
+    #compute count, round up at 0.5
     sc=$(( ($SYSTEM_CLOCK * 10 / $baud + 5) / 10 ))
-    #sample = count/2, round up
+    #sample = count/2, round up at 0.5
     sp=$(( ($sc * 5 + 5) / 10 ))
 
     #disable rx buffer irq, set highspeed to 3,
