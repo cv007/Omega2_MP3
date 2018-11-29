@@ -128,8 +128,8 @@ int strto_u32(const char* str, int argn)
         s += 2;                     //skip over "0b"
     }
     uint32_t val = strtoul(s, &endptr, base);
-    if(*endptr == 0) return val;    //conversion ok
-    arg_error_exit(argn, str);      //failed
+    if(*endptr) arg_error_exit(argn, str); //failed if *endptr not 0
+    return val;                     //conversion ok
 }
 
 //=============================================================================
