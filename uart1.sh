@@ -41,6 +41,16 @@ baud=$(printf '%d' $(( $1 )) ) 2>/dev/null
 check_baud $baud
 shift
 set -e #exit on failures
+
+#==============================================================================
+# Omega2 registers, bitmasks, clock
+#==============================================================================
+UART1_IER=0xd04; ERFBIbm=0x01
+UART1_LCR=0xd0c; DLABbm=0x80
+UART1_DLL=0xd00; UART1_DLM=0xd04
+UART1_HIGHSPEED=0xd24
+UART1_SAMPLE_COUNT=0xd28; UART1_SAMPLE_POINT=0xd2c
+UART1_SYSTEM_CLOCK=40000000
 devmem=/root/devmem
 
 #==============================================================================
@@ -55,17 +65,16 @@ cleanup() {
   kill -9 $catpid &>/dev/null
   set +e
   stty $save_stty
-  #UART1_HIGHSPEED = 0
-  $devmem w 0xd24 0
+  $devmem w $UART1_HIGHSPEED 0
   exit 0
 }
 trap 'cleanup' INT
 
 #==============================================================================
+# reset highspeed in case still on
 # setup serial port (append any additional command line parameters)
 #==============================================================================
-#UART1_HIGHSPEED = 0 (in case is still at 3 for some reason)
-$devmem w 0xd24 0
+$devmem w $UART1_HIGHSPEED 0
 stty -F /dev/ttyS1 raw -echo "$@"
 
 #==============================================================================
@@ -87,16 +96,8 @@ catpid=$!
 # write to highspeed register, set sample count and sample period registers
 #==============================================================================
 if [ $baud -gt 115200 ]; then
-    #Omega2 registers, bitmasks, clock
-    UART1_IER=0xd04; ERFBIbm=0x01
-    UART1_LCR=0xd0c; DLABbm=0x80
-    UART1_DLL=0xd00; UART1_DLM=0xd04
-    UART1_HIGHSPEED=0xd24
-    UART1_SAMPLE_COUNT=0xd28; UART1_SAMPLE_POINT=0xd2c
-    SYSTEM_CLOCK=40000000
-
     #compute count, round up at 0.5
-    sc=$(( ($SYSTEM_CLOCK * 10 / $baud + 5) / 10 ))
+    sc=$(( ($UART1_SYSTEM_CLOCK * 10 / $baud + 5) / 10 ))
     #sample = count/2, round up at 0.5
     sp=$(( ($sc * 5 + 5) / 10 ))
 
