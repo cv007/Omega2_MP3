@@ -33,7 +33,7 @@ check_baud() {
 
 #==============================================================================
 # check script parameters
-# convert baud string to integer
+# convert baud string to integer (0 if fails)
 # verify valid baud values
 #==============================================================================
 [ "$1" ] || usage
