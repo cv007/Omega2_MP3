@@ -13,13 +13,13 @@
 #include <libgen.h> //basename
 
 //=============================================================================
-// defines and GLOBAL vars
+// defines
 //=============================================================================
 #define MAX_ARGS 255                    //limit # of args to program
 #define BASE_ADDR 0x10000000            //Omega2 base register address
 
 //=============================================================================
-// command buffer struct
+// command buffer struct and global buffer
 //=============================================================================
 typedef struct {
     char cmd;
