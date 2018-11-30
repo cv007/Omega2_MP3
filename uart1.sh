@@ -19,7 +19,7 @@ usage() {
 
 #==============================================================================
 # check for valid baud values
-# standard vlaues from 300-115200 and anything from 115200-600000
+# standard vlaues from 300-115200 and anything from 115200-1000000
 #==============================================================================
 check_baud() {
     [ $1 -eq 0 ] && usage "invalid baud value"
