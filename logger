@@ -4,21 +4,40 @@ logfile=log.txt
 
 mpg123_info() {
     [ "${str:0:1}" == "@" ] || return
-    case "${str:1:1}" in
-        "I")  #get only stream title, remove any newlines first
-            str="$(echo $str | grep "StreamTitle" | sed "s:.*StreamTitle='::" | sed "s:'.*::")"
-            [ "$str" ] && str="@ $str"
-        ;;
-        "P")
-            [ "${str:3:1}" == "0" ] && str="@ stopped"
-            [ "${str:3:1}" == "1" ] && str="@ paused"
-            [ "${str:3:1}" == "2" ] && str="@ play"
-        ;;
+    case "$str" in
+        *StreamTitle*)
+            #...StreamTitle='*********';..... -we want the stars,
+            #remove start via empty substitute
+            str="${str/*StreamTitle=\'/}"
+            #remove end (will be left with the quoted string)
+            str="${str/\';*/}"
+            #discard empty string,
+            [ "$str" ] || return
+            #duplicates,
+            [ "$last_str" == "$str" ] && unset str && return
+            #and titles with 'YourClassical.org' in them
+            (echo "$str" | grep "YourClassical.org")>&/dev/null && unset str && return
+            last_str="$str"
+            str="@ $str"
+            ;;
+        "@P 0")
+            str="@ stopped"
+            ;;
+        "@P 1")
+            str="@ paused"
+            ;;
+        "@P 2")
+            str="@ play"
+            ;;
         *)
             unset str
         ;;
     esac
 }
+
+#stay in logging loop until QUITQUIT received
+#input is from logfifo (mpg123 and mp3 script will send all messages to this script
+#via the fifo)
 
 while [ 1 -eq 1 ]; do
     read str <logfifo
@@ -26,8 +45,7 @@ while [ 1 -eq 1 ]; do
     dat="$(date +%Y-%m-%d)"
     tim="$(date +%H:%M:%S)"
     mpg123_info
-    [ "$str" ] || continue
-    echo "[ $dat $tim ] $str" >> "$logfile"
+    [ "$str" ] && echo "[ $dat $tim ] $str" >> "$logfile"
 done
 
 #>$logfile
