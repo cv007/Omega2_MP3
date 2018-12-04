@@ -1,41 +1,42 @@
 #!/bin/sh
 
-logfile=log.txt
-
 mpg123_info() {
     [ "${str:0:1}" == "@" ] || return
     case "$str" in
         *StreamTitle*)
-            #...StreamTitle='*********';..... -we want the stars,
-            #remove start via empty substitute
+            #...StreamTitle='song title here';..... -we want only the title,
+            #remove up to song title via empty substitute
             str="${str/*StreamTitle=\'/}"
-            #remove end (will be left with the quoted string)
+            #remove after title (will be left with just the title)
             str="${str/\';*/}"
-            #discard empty string,
+            #empty string, just return
             [ "$str" ] || return
-            #duplicates,
+            #duplicates of last title
             [ "$last_str" == "$str" ] && unset str && return
-            #and titles with 'YourClassical.org' in them
-            (echo "$str" | grep "YourClassical.org")>&/dev/null && unset str && return
+            #title contains 'YourClassical.org'
+            [ -z "${str##*YourClassical.org*}" ] && unset str && return
+            #save for next time (check duplicates)
             last_str="$str"
+            #add '@ ' so we know log source is mpg123
             str="@ $str"
             ;;
-        "@P 0")
-            str="@ stopped"
-            ;;
-        "@P 1")
-            str="@ paused"
-            ;;
-        "@P 2")
-            str="@ play"
-            ;;
+        "@P 0") str="@ stopped" ;;
+        "@P 1") str="@ paused"  ;;
+        "@P 2") str="@ play"    ;;
         *)
             unset str
         ;;
     esac
 }
 
-#stay in logging loop until QUITQUIT received
+
+#if passed a logfile name, use it, else set ourselves
+[ "$1" ] && logfile="$1" || logfile=log.txt
+#try to append to log, if fails use our own log file
+>>"$logfile" || logfile=log.txt
+
+
+#stay in logging loop until QUITQUIT received (by mp3 script)
 #input is from logfifo (mpg123 and mp3 script will send all messages to this script
 #via the fifo)
 
@@ -49,5 +50,5 @@ while [ 1 -eq 1 ]; do
 done
 
 #>$logfile
-#let mp3 delete logfile if needed
+#just let mp3 delete logfile if needed
 
