@@ -2,7 +2,7 @@
 
 reset flash using serial on expansion board
 downloaded firmware from - http://repo.onion.io/omega2/images/
-put on usb flash dirve- fat32 formatted, file to root folder, rename file to omega2.bin
+put on usb flash drive- fat32 formatted, file to root folder, rename file to omega2.bin
 usb flash drive in expansion dock, power on with reset button pressed
 choose option 2 - flash firmware from usb storage
 
