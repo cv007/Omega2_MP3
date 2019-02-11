@@ -53,6 +53,14 @@ opkg install alsa-utils         #audio control
 
 
 
+#################
+#  misc info
+#################
+https://onion.io/2bt-cross-compiling-programs/
+https://onion.io/2bt-cross-compiling-c-programs-part-1/
+
+
+
 
 //////////////////////
 backup instructions
@@ -119,3 +127,45 @@ mount /dev/sda1 /mnt
 mtd -r write /mnt/backup/firmware.bin firmware
 
 This will take a few minutes to complete. After the Omega Onion will reboot and you should see an imaged / recovered Omega Onion! Hope this helps someone.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+reset flash using serial on expansion board
+downloaded firmware from - http://repo.onion.io/omega2/images/
+put on usb flash dirve- fat32 formatted, file to root folder, rename file to omega2.bin
+usb flash drive in expansion dock, power on with reset button pressed
+choose option 2 - flash firmware from usb storage
+
+passwd
+wifisetup
+
+uci set wireless.ap.hidden=1
+uci set network.wwan.hostname='Omega_SNAP1'
+uci set wireless.ap.key='123456789123456789'
+uci set system.@system[0].timezone=CST6CDT,M3.2.0,M11.1.0
+uci commit
+opkg remove --force-removal-of-dependent-packages shellinabox
+opkg remove --force-removal-of-dependent-packages uhttpd
+opkg remove mosquitto-ssl
+opkg remove mosquitto-client-ssl
+opkg update
+oupgrade
+opkg install coreutils-stty
+reboot
+
+on pc- ssh-keygen
+scp ~/.ssh/id_rsa.pub root@omega_snap1:/root
+on omega-
+cat id_rsa.pub >> /etc/dropbear/authorized_keys
