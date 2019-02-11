@@ -2,6 +2,10 @@
 
 #interactive UART1/2 from ssh session
 
+#TODO
+#create an lock file so another session does not try to open a uart already
+#in use
+#create uart1 uart
 
 #==============================================================================
 # usage
@@ -45,6 +49,13 @@ baud=$(printf '%d' $(( $2 )) ) 2>/dev/null
 check_baud $baud
 shift
 set -e #exit on failures
+
+#==============================================================================
+# check if device already open by this script (in another shell)
+# ( turn into regex with [c]at.. so grep command does not match )
+#==============================================================================
+(ps | grep -q "[c]at /dev/ttyS$uartn") && usage "uart$uartn in use"
+
 
 #==============================================================================
 # Omega2 registers, bitmasks, clock
