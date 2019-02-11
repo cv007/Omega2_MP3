@@ -2,10 +2,6 @@
 
 #interactive UART1/2 from ssh session
 
-#TODO
-#create an lock file so another session does not try to open a uart already
-#in use
-#create uart1 uart
 
 #==============================================================================
 # usage
