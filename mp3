@@ -191,25 +191,20 @@ init() {
 }
 #..............................................................................
 # for http streams, let mpg123 handle http so we get song titles
+# use wget into fifo for https streams as mpg123 does not do https
+# wget will quit when pipe is broken (by stop or quit command)
 #..............................................................................
 http() {
     [ $running ] || init                    #init mpg123 if not running
     [ $log_date ] && log "date" $today      #date, (if log_date flag set)
     log "title" "$title"                    #log title,
-    command "LOAD $url"                     #tell mpg123 to load url
-    rgb "green"                             #lights green = running
-}
-#..............................................................................
-# use wget into fifo for https streams as mpg123 does not do https
-# wget will quit when pipe is broken (by stop or quit command)
-#..............................................................................
-https() {
-    [ $running ] || init                    #init mpg123 if not running
-    log "title" "$title"                    #log title,
-    [ $log_date ] && log "date" $today      #date, (if log_date flag set)
-    log "url" $url                          #log url
-    command "LOAD $wget_fifo"               #tell mpg123 to load from fifo
-    wget -qO $wget_fifo $url &              #wget into fifo, background
+    if [ ${url:4} == "s" ]; then            #if https
+      log "url" $url                        #log url (mpg123 not logging it)
+      command "LOAD $wget_fifo"             #tell mpg123 to load from fifo
+      wget -qO $wget_fifo $url &            #wget into fifo, background
+    else                                    #else is http
+      command "LOAD $url"                   #tell mpg123 to load url
+    fi
     rgb "green"                             #lights green = running
 }
 #==============================================================================
@@ -255,22 +250,18 @@ case $cmd in
     "itm")
         url=$(wget -qO - https://www.intouch.org/listen/podcast/today-on-radio | sed 's:":\n:g' | grep -m 1 mp3)
         title="In Touch Ministries - Dr. Charles Stanley"
-        func="https"
         ;;
     "lwf")
         url=$(wget -qO - https://www.oneplace.com/ministries/love-worth-finding/custom-player | sed 's:\x27:\n:g' | grep -m 1 mp3)
         title="Love Worth Finding - Adrian Rogers"
-        func="https"
         ;;
     "tp")
         url=$(wget -qO - http://www.davidjeremiah.org/site/radio_player.aspx | sed 's:":\n:g' | grep -m 1 mp3 | sed 's:?.*::')
         title="Turning Point - Dr. David Jeremiah"
-        func="https"
         ;;
     "ttb")
         url=$(wget -qO - https://www.oneplace.com/ministries/thru-the-bible-with-j-vernon-mcgee/custom-player/ | sed 's:\x27:\n:g' | grep -m 1 mp3)
         title="Through the Bible - Dr. J. Vernon McGee"
-        func="https"
         ;;
     "bott")
         url="http://sc1.christiannetcast.com:9058/"
@@ -279,12 +270,10 @@ case $cmd in
     "anb")
         url=https://anewbeginning.swncdn.com/anb/${today:0:4}/anb${today}pod.mp3
         title="A New Beginning - Greg Laurie"
-        func="https"
         ;;
     "gty")
         url=https://cdn.gty.org/podcast/${today}.mp3
         title="Grace to You - John MacArthur"
-        func="https"
         ;;
     "fpm")
         url=http://fpmedia.focalpointministries.org/sermonbroadcast/${today:0:4}/${today}.mp3
@@ -316,7 +305,6 @@ $func
 #   "tfl")
 #       url=$(wget -qO - https://www.truthforlife.org | sed 's:\x27:\n:g' | grep -m 1 mp3)
 #       title="Truth for Life - Alistair Begg"
-#       func="https"
 #       ;;
 
 
