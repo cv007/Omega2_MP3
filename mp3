@@ -38,6 +38,8 @@ usage() {
     echo "   $n anb [20YYMMDD]                  -play A New Beginning"
     echo "   $n rym [20YYMMDD]                  -play Renewing Your Mind"
     echo "   $n rtw [20YYMMDD]                  -play Running to Win"
+    echo "   $n gty [20YYMMDD]                  -play Grace to You"
+    echo "   $n fpm [20YYMMDD]                  -play Focal Point Ministries"
     echo ""
     exit 1
 }
@@ -241,12 +243,12 @@ case $cmd in
         title="MPR Choral Stream"
         ;;
     "rtw")
-        url="http://s3.amazonaws.com/themoodychurch/RadioPrograms/RTW25/RTWL$today.mp3"
+        url="http://s3.amazonaws.com/themoodychurch/RadioPrograms/RTW25/RTWL${today}.mp3"
         title="Running to Win - Dr. Erwin Lutzer"
         log_date=1
         ;;
     "rym")
-        url="http://s3.amazonaws.com/ligonier-broadcast-media/mp3/rym$today.mp3"
+        url="http://s3.amazonaws.com/ligonier-broadcast-media/mp3/rym${today}.mp3"
         title="Renewing Your Mind - R.C. Sproul"
         log_date=1
         ;;
@@ -275,9 +277,18 @@ case $cmd in
         title="Bott Radio Network"
         ;;
     "anb")
-        url=https://anewbeginning.swncdn.com/anb/${today:0:4}/anb${today:0:4}${today:4:2}${today:6:2}pod.mp3
+        url=https://anewbeginning.swncdn.com/anb/${today:0:4}/anb${today}pod.mp3
         title="A New Beginning - Greg Laurie"
         func="https"
+        ;;
+    "gty")
+        url=https://cdn.gty.org/podcast/${today}.mp3
+        title="Grace to You - John MacArthur"
+        func="https"
+        ;;
+    "fpm")
+        url=http://fpmedia.focalpointministries.org/sermonbroadcast/${today:0:4}/${today}.mp3
+        title="Focal Point Ministries - Mike Fabarez"
         ;;
     *)
         usage
@@ -298,7 +309,7 @@ $func
 #echo "   $n ltw                             -play Leading The Way"
 #echo "   $n tfl                             -play Truth for Life"
 #    "ltw")
-#        url=http://web.audio.ltw.org/${today:0:4}/ltw$today.mp3
+#        url=http://web.audio.ltw.org/${today:0:4}/ltw${today}.mp3
 #        title="Leading The Way - Dr. Michael Youssef"
 #        ;;
 
