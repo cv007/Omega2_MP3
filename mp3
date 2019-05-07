@@ -198,7 +198,7 @@ http() {
     [ $running ] || init                    #init mpg123 if not running
     [ $log_date ] && log "date" $today      #date, (if log_date flag set)
     log "title" "$title"                    #log title,
-    if [ ${url:4} == "s" ]; then            #if https
+    if [ ${url:4:1} == "s" ]; then          #if https
       log "url" $url                        #log url (mpg123 not logging it)
       command "LOAD $wget_fifo"             #tell mpg123 to load from fifo
       wget -qO $wget_fifo $url &            #wget into fifo, background
