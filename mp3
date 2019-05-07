@@ -32,6 +32,7 @@ usage() {
     echo "   $n ttb                             -play Through the Bible"
     echo "   $n tp                              -play Turning Point"
     echo "   $n itm                             -play In Touch Ministries"
+    echo "   $n tfl                             -play Truth for Life"
     echo ""
     echo "   ---the following streams default to today's stream"
     echo "      unless a date is also provided"
@@ -40,6 +41,7 @@ usage() {
     echo "   $n rtw [20YYMMDD]                  -play Running to Win"
     echo "   $n gty [20YYMMDD]                  -play Grace to You"
     echo "   $n fpm [20YYMMDD]                  -play Focal Point Ministries"
+    #echo "   $n ltw [20YYMMDD]                  -play Leading The Way"
     echo ""
     exit 1
 }
@@ -279,6 +281,19 @@ case $cmd in
         url=http://fpmedia.focalpointministries.org/sermonbroadcast/${today:0:4}/${today}.mp3
         title="Focal Point Ministries - Mike Fabarez"
         ;;
+    #these crash mpg123 for some reason
+    #but can play via command line, https- wget -qO - $url | mpg123 -
+    #or http- mpg123 $url
+    #"ltw")
+        #url=$(https://web.audio.ltw.org/${today:0:4}/ltw${today}.mp3
+        #url=$(wget -qO - https://www.oneplace.com/ministries/leading-the-way/ |  sed 's:\x27:\n:g' | grep -m 1 mp3)
+        #title="Leading The Way - Dr. Michael Youssef"
+        #;;
+    "tfl")
+        url=$(wget -qO - https://www.truthforlife.org | sed 's:\x27:\n:g' | grep -m 1 mp3)
+        title="Truth for Life - Alistair Begg"
+        ;;
+
     *)
         usage
         ;;
@@ -289,23 +304,6 @@ esac
 $func
 
 
-#others not implemented
-#they do not work for some reason
-#but can play them via command line, https- wget -qO - $url | mpg123 -
-#or http- mpg123 $url
-#not sure what is going on
-
-#echo "   $n ltw                             -play Leading The Way"
-#echo "   $n tfl                             -play Truth for Life"
-#    "ltw")
-#        url=http://web.audio.ltw.org/${today:0:4}/ltw${today}.mp3
-#        title="Leading The Way - Dr. Michael Youssef"
-#        ;;
-
-#   "tfl")
-#       url=$(wget -qO - https://www.truthforlife.org | sed 's:\x27:\n:g' | grep -m 1 mp3)
-#       title="Truth for Life - Alistair Begg"
-#       ;;
 
 
 
