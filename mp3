@@ -259,7 +259,7 @@ case $cmd in
         title="Love Worth Finding - Adrian Rogers"
         ;;
     "tp")
-        url=$(wget -qO - http://www.davidjeremiah.org/site/radio_player.aspx | sed 's:":\n:g' | grep -m 1 mp3 | sed 's:?.*::')
+        url=$(wget -qO - http://www.davidjeremiah.org/site/radio_player.aspx | sed 's:":\n:g' | grep -m 1 ".\mp3" | sed 's:?.*::')
         title="Turning Point - Dr. David Jeremiah"
         ;;
     "ttb")
