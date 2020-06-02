@@ -31,7 +31,7 @@ usage() {
     echo "   $n lwf                             -play Love Worth Finding"
     echo "   $n ttb                             -play Through the Bible"
     echo "   $n tp                              -play Turning Point"
-    echo "   $n itm                             -play In Touch Ministries"
+  # echo "   $n itm                             -play In Touch Ministries"
     echo "   $n tfl                             -play Truth for Life"
     echo ""
     echo "   ---the following streams default to today's stream"
@@ -250,10 +250,10 @@ case $cmd in
         title="Renewing Your Mind - R.C. Sproul"
         log_date=1
         ;;
-    "itm")
-        url=$(wget -qO - https://www.intouch.org/listen/podcast/today-on-radio | sed 's:":\n:g' | grep -m 1 mp3)
-        title="In Touch Ministries - Dr. Charles Stanley"
-        ;;
+    #"itm") #no longer works
+    #    url=$(wget -qO - https://www.intouch.org/listen/podcast/today-on-radio | sed 's:":\n:g' | grep -m 1 mp3)
+    #    title="In Touch Ministries - Dr. Charles Stanley"
+    #    ;;
     "lwf")
         url=$(wget -qO - https://www.oneplace.com/ministries/love-worth-finding/custom-player | sed 's:\x27:\n:g' | grep -m 1 mp3)
         title="Love Worth Finding - Adrian Rogers"
